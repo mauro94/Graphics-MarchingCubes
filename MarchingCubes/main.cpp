@@ -3,6 +3,7 @@
 // Julio Noriega    A01273613	
 // Mauro Amarante   A01191903
 
+// Referencing code for Marching Cubes generic algorithm from
 // http://paulbourke.net/geometry/polygonise/
 
 #include "stdio.h"
