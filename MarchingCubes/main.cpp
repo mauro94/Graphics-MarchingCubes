@@ -10,6 +10,10 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <iterator>
+#include <stdlib.h>
 #ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
@@ -86,6 +90,8 @@ void vResize(GLsizei, GLsizei);
 void vKeyboard(unsigned char cKey, int iX, int iY);
 void vSpecial(int iKey, int iX, int iY);
 void outputOBJ();
+void drawInput();
+void inputOBJ();
 
 GLvoid vPrintHelp();
 GLvoid vSetTime(GLfloat fTime);
@@ -100,6 +106,7 @@ vector<string> sVertices;
 vector<string> sNormalVertices;
 vector<string> sFaces;
 int vertexCounter = 1;
+bool isInput = false;
 
 int main(int argc, char **argv) {
   GLfloat afPropertiesAmbient [] = {0.50, 0.50, 0.50, 1.00};
@@ -228,6 +235,10 @@ void vKeyboard(unsigned char cKey, int iX, int iY) {
     case 'u' : {
       outputOBJ();
     };
+    case 'p' : {
+      isInput = !isInput;
+      inputOBJ();
+    };
   }
 }
 
@@ -253,13 +264,16 @@ void vIdle() {
 void vDrawScene() {
   static GLfloat fTime = 0.0;
   
-  sVertices.erase(sVertices.begin(),sVertices.end());
-  sNormalVertices.erase(sNormalVertices.begin(),sNormalVertices.end());
-  sFaces.erase(sFaces.begin(),sFaces.end());
-  vertexCounter = 1;
+  if(!isInput) {
+    sVertices.erase(sVertices.begin(),sVertices.end());
+    sNormalVertices.erase(sNormalVertices.begin(),sNormalVertices.end());
+    sFaces.erase(sFaces.begin(),sFaces.end());
+    vertexCounter = 1;
+  }
   
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  
+  glLoadIdentity();
+ 
   glPushMatrix();
   // Animation
   vSetTime(fTime);
@@ -278,7 +292,10 @@ void vDrawScene() {
   glPushMatrix();
   glTranslatef(-0.5, -0.5, -0.5);
   glBegin(GL_TRIANGLES);
-  vMarchingCubes();
+  if(!isInput)
+    vMarchingCubes();
+  else
+    drawInput();
   glEnd();
   glPopMatrix();
   
@@ -824,5 +841,47 @@ void outputOBJ() {
   else{
     cout << "ERROR - No se pudo crear el archivo";
     exit (EXIT_FAILURE);
+  }
+}
+
+void inputOBJ() {
+  ifstream iFile ("Marching_Cubes_Output.obj");
+  string line = "";
+
+  sVertices.erase(sVertices.begin(),sVertices.end());
+  sNormalVertices.erase(sNormalVertices.begin(),sNormalVertices.end());
+  sFaces.erase(sFaces.begin(),sFaces.end());
+
+  if (iFile.is_open()) {
+    while ( getline (iFile,line) ) {
+      sVertices.push_back(line);
+    }
+    iFile.close();
+  }
+
+  else {
+    cout << "ERROR - No se pudo crear el archivo";
+    exit (EXIT_FAILURE);
+  }
+}
+
+void drawInput() {
+  for(int i = 0; i < sVertices.size(); i++) {
+    // get words into vector
+    istringstream buf(sVertices[i]);
+    istream_iterator<string> beg(buf), end;
+    vector<string> tokens(beg, end); 
+
+    string code = tokens[0];
+    double dX = atof(tokens[1].c_str());
+    double dY = atof(tokens[2].c_str());
+    double dZ = atof(tokens[3].c_str());
+
+    if(code == "v") {
+      glVertex3f(dX,dY,dZ);
+    }
+    if(code == "vn") {
+      glNormal3f(dX,dY,dZ);
+    }
   }
 }
