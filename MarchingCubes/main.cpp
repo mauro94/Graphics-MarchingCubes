@@ -58,19 +58,7 @@ static const GLfloat a2fEdgeDirection[12][3] = {
   {0.0, 0.0, 1.0},{0.0, 0.0, 1.0},{ 0.0, 0.0, 1.0},{0.0,  0.0, 1.0}
 };
 
-static const GLfloat afAmbientWhite [] = {0.25, 0.25, 0.25, 1.00};
-static const GLfloat afAmbientRed   [] = {0.25, 0.00, 0.00, 1.00};
-static const GLfloat afAmbientGreen [] = {0.00, 0.25, 0.00, 1.00};
-static const GLfloat afAmbientBlue  [] = {0.00, 0.00, 0.25, 1.00};
-static const GLfloat afDiffuseWhite [] = {0.75, 0.75, 0.75, 1.00};
-static const GLfloat afDiffuseRed   [] = {0.75, 0.00, 0.00, 1.00};
-static const GLfloat afDiffuseGreen [] = {0.00, 0.75, 0.00, 1.00};
-static const GLfloat afDiffuseBlue  [] = {0.00, 0.00, 0.75, 1.00};
 static const GLfloat afSpecularWhite[] = {1.00, 1.00, 1.00, 1.00};
-static const GLfloat afSpecularRed  [] = {1.00, 0.25, 0.25, 1.00};
-static const GLfloat afSpecularGreen[] = {0.25, 1.00, 0.25, 1.00};
-static const GLfloat afSpecularBlue [] = {0.25, 0.25, 1.00, 1.00};
-
 static const GLfloat afAmbientPurple [] = {0.10, 0.0, 0.10, 1.00};
 static const GLfloat afAmbientDarkRed  [] = {0.15, 0.00, 0.00, 1.00};
 static const GLfloat afDiffusePurple [] = {0.50, 0.0, 0.50, 1.00};
@@ -121,6 +109,151 @@ bool isInput = false;
 int currentIsosurface = 1;
 bool once = false;
 
+#define FILL_MENU_OPTION 1
+#define LINE_MENU_OPTION 2
+#define OUT_MENU_OPTION 1
+#define NORMAL_MENU_OPTION 2
+#define REGULAR_COLOR_MENU_OPTION 1
+#define NORMALS_COLOR_MENU_OPTION 2
+#define EXPORT_MENU_OPTION 1
+#define IMPORT_MENU_OPTION 2
+
+void processMainMenu(int option) {
+    switch(option) {
+        case 0: bMove = !bMove;
+    }
+}
+
+void processFillMenu(int option) {
+    switch(option) {
+        case FILL_MENU_OPTION:
+            ePolygonMode = GL_FILL;
+            break;
+        case LINE_MENU_OPTION:
+            ePolygonMode = GL_LINE;
+            break;
+    }
+    glPolygonMode(GL_FRONT_AND_BACK, ePolygonMode);
+}
+
+void processShrinkMenu(int option) {
+    switch(option) {
+        case OUT_MENU_OPTION:
+            scale = 0.5f;
+            break;
+        case NORMAL_MENU_OPTION:
+            scale = 1.0f;
+            break;
+    }
+}
+
+void processColorMenu(int option) {
+    switch(option) {
+        case REGULAR_COLOR_MENU_OPTION:
+            glEnable(GL_LIGHTING);
+            bLight = false;
+            break;
+        case NORMALS_COLOR_MENU_OPTION:
+            glDisable(GL_LIGHTING);
+            bLight = true;
+            break;
+    }
+}
+
+void processSurfaceMenu(int option) {
+    switch(option) {
+        case 1:
+            fSample = fSample1;
+            currentIsosurface = 1;
+            break;
+        case 2:
+            fSample = fSample2;
+            currentIsosurface = 2;
+            break;
+        case 3:
+            fSample = fSample3;
+            currentIsosurface = 3;
+            break;
+        case 4:
+            fSample = fSample4;
+            currentIsosurface = 4;
+            break;
+        case 5:
+            fSample = fSample5;
+            currentIsosurface = 5;
+            break;
+        case 6:
+            fSample = fSample6;
+            currentIsosurface = 6;
+            break;
+        case 7:
+            fSample = fSample7;
+            currentIsosurface = 7;
+            break;
+        case 8:
+            fSample = fSample8;
+            currentIsosurface = 8;
+            break;
+        case 9:
+            fSample = fSample9;
+            currentIsosurface = 9;
+            break;
+    }
+}
+
+void processFileMenu(int option) {
+    switch(option) {
+        case IMPORT_MENU_OPTION:
+            isInput = !isInput;
+            inputOBJ();
+            break;
+        case EXPORT_MENU_OPTION:
+            outputOBJ();
+            break;
+    }
+}
+
+
+void createPopupMenus() {
+    int surfaceMenu = glutCreateMenu(processSurfaceMenu);
+    glutAddMenuEntry("Sphere",1);
+    glutAddMenuEntry("Tubes",2);
+    glutAddMenuEntry("Wave",3);
+    glutAddMenuEntry("Cone",4);
+    glutAddMenuEntry("Diamond",5);
+    glutAddMenuEntry("Ringed tube",6);
+    glutAddMenuEntry("Ringed sphere",7);
+    glutAddMenuEntry("Peculiar rock",8);
+    glutAddMenuEntry("Rounded hollow polygon",9);
+    
+    int fillMenu = glutCreateMenu(processFillMenu);
+    glutAddMenuEntry("Fill",FILL_MENU_OPTION);
+    glutAddMenuEntry("Line",LINE_MENU_OPTION);
+    
+    int shrinkMenu = glutCreateMenu(processShrinkMenu);
+    glutAddMenuEntry("Move away", OUT_MENU_OPTION);
+    glutAddMenuEntry("Default distance",NORMAL_MENU_OPTION);
+    
+    int colorMenu = glutCreateMenu(processColorMenu);
+    glutAddMenuEntry("Default colors", REGULAR_COLOR_MENU_OPTION);
+    glutAddMenuEntry("Normals coloring",NORMALS_COLOR_MENU_OPTION);
+    
+    int fileMenu = glutCreateMenu(processFileMenu);
+    glutAddMenuEntry("Export to OBJ", EXPORT_MENU_OPTION);
+    glutAddMenuEntry("Import from OBJ", IMPORT_MENU_OPTION);
+    
+    int mainMenu = glutCreateMenu(processMainMenu);
+    glutAddSubMenu("Pick isosurface", surfaceMenu);
+    glutAddSubMenu("Polygon Mode", fillMenu);
+    glutAddSubMenu("Movement", shrinkMenu);
+    glutAddSubMenu("Color", colorMenu);
+    glutAddSubMenu("File", fileMenu);
+    glutAddMenuEntry("Toggle movement", 0);
+    glutAttachMenu(GLUT_RIGHT_BUTTON);
+}
+
+
+
 int main(int argc, char **argv) {
 
   GLfloat afPropertiesAmbient [] = {0.50, 0.50, 0.50, 1.00};
@@ -168,6 +301,7 @@ int main(int argc, char **argv) {
   if(!once) inputSession(); 
   
   vPrintHelp();
+    createPopupMenus();
   glutMainLoop();
   
   return 0;
@@ -1132,8 +1266,8 @@ void inputSession() {
     fStepSize = atof(tokens[7].c_str());
     if(tokens[8] == "0") bMove = false;
     else bMove = true;
-    if(tokens[9] == "0") bLight = true;
-    else bLight = false;
+    if(tokens[9] == "0") bLight = false;
+    else bLight = true;
     if(tokens[10] == "0") isInput = false;
     else {
     isInput = true;
