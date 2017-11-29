@@ -3,6 +3,7 @@
 // Julio Noriega    A01273613	
 // Mauro Amarante   A01191903
 
+// Referencing code for Marching Cubes generic algorithm from
 // http://paulbourke.net/geometry/polygonise/
 
 #include "stdio.h"
@@ -21,6 +22,15 @@
 #endif
 
 using namespace std;
+
+
+float scale = 1;
+float displacementX = 0.0;
+float displacementY = 0.0;
+
+float panAngle = 20.0f;
+float rollAngle = 10.0f;
+float tiltAngle = 10.0f;
 
 struct GLvector {
   GLfloat fX;
@@ -48,19 +58,6 @@ static const GLfloat a2fEdgeDirection[12][3] = {
   {0.0, 0.0, 1.0},{0.0, 0.0, 1.0},{ 0.0, 0.0, 1.0},{0.0,  0.0, 1.0}
 };
 
-static const GLint a2iTetrahedronEdgeConnection[6][2] = {
-  {0,1},  {1,2},  {2,0},  {0,3},  {1,3},  {2,3}
-};
-
-static const GLint a2iTetrahedronsInACube[6][4] = {
-  {0,5,1,6},
-  {0,1,2,6},
-  {0,2,3,6},
-  {0,3,7,6},
-  {0,7,4,6},
-  {0,4,5,6},
-};
-
 static const GLfloat afAmbientWhite [] = {0.25, 0.25, 0.25, 1.00};
 static const GLfloat afAmbientRed   [] = {0.25, 0.00, 0.00, 1.00};
 static const GLfloat afAmbientGreen [] = {0.00, 0.25, 0.00, 1.00};
@@ -74,8 +71,13 @@ static const GLfloat afSpecularRed  [] = {1.00, 0.25, 0.25, 1.00};
 static const GLfloat afSpecularGreen[] = {0.25, 1.00, 0.25, 1.00};
 static const GLfloat afSpecularBlue [] = {0.25, 0.25, 1.00, 1.00};
 
+static const GLfloat afAmbientPurple [] = {0.10, 0.0, 0.10, 1.00};
+static const GLfloat afAmbientDarkRed  [] = {0.15, 0.00, 0.00, 1.00};
+static const GLfloat afDiffusePurple [] = {0.50, 0.0, 0.50, 1.00};
+static const GLfloat afDiffuseDarkRed  [] = {0.50, 0.00, 0.00, 1.00};
+
 GLenum    ePolygonMode = GL_FILL;
-GLint     iDataSetSize = 16;
+GLint     iDataSetSize = 32;
 GLfloat   fStepSize = 1.0/iDataSetSize;
 GLfloat   fTargetValue = 48.0;
 GLfloat   fTime = 0.0;
@@ -98,6 +100,12 @@ GLvoid vSetTime(GLfloat fTime);
 GLfloat fSample1(GLfloat fX, GLfloat fY, GLfloat fZ);
 GLfloat fSample2(GLfloat fX, GLfloat fY, GLfloat fZ);
 GLfloat fSample3(GLfloat fX, GLfloat fY, GLfloat fZ);
+GLfloat fSample4(GLfloat fX, GLfloat fY, GLfloat fZ);
+GLfloat fSample5(GLfloat fX, GLfloat fY, GLfloat fZ);
+GLfloat fSample6(GLfloat fX, GLfloat fY, GLfloat fZ);
+GLfloat fSample7(GLfloat fX, GLfloat fY, GLfloat fZ);
+GLfloat fSample8(GLfloat fX, GLfloat fY, GLfloat fZ);
+GLfloat fSample9(GLfloat fX, GLfloat fY, GLfloat fZ);
 GLfloat (*fSample)(GLfloat fX, GLfloat fY, GLfloat fZ) = fSample1;
 GLvoid vMarchingCubes();
 
@@ -142,10 +150,10 @@ int main(int argc, char **argv) {
   
   glEnable( GL_LIGHT0 );
   
-  glMaterialfv(GL_BACK,  GL_AMBIENT,   afAmbientGreen);
-  glMaterialfv(GL_BACK,  GL_DIFFUSE,   afDiffuseGreen);
-  glMaterialfv(GL_FRONT, GL_AMBIENT,   afAmbientBlue);
-  glMaterialfv(GL_FRONT, GL_DIFFUSE,   afDiffuseBlue);
+  glMaterialfv(GL_BACK,  GL_AMBIENT,   afAmbientPurple);
+  glMaterialfv(GL_BACK,  GL_DIFFUSE,   afDiffusePurple);
+  glMaterialfv(GL_FRONT, GL_AMBIENT,   afAmbientDarkRed);
+  glMaterialfv(GL_FRONT, GL_DIFFUSE,   afDiffuseDarkRed);
   glMaterialfv(GL_FRONT, GL_SPECULAR,  afSpecularWhite);
   glMaterialf( GL_FRONT, GL_SHININESS, 25.0);
   
@@ -158,13 +166,14 @@ int main(int argc, char **argv) {
 }
 
 GLvoid vPrintHelp() {
-  printf("Marching Cubes Example by Cory Bloyd (dejaspaminacan@my-deja.com)\n\n");
-  
-  printf("+/-  increase/decrease sample density\n");
-  printf("PageUp/PageDown  increase/decrease surface value\n");
-  printf("s  change sample function\n");
-  printf("w  wireframe on/off\n");
-  printf("l  toggle lighting / color-by-normal\n");
+  printf("Use numbers to change figures (functions) \n");
+  printf("c  Change color \n");
+  printf("v  Change view type (fill/wireframe)\n");
+  printf("+/-  Change number of cubes \n");
+  printf("WASD, R and F to translate\n");
+  printf("UHJK, O and L to rotate\n");
+  printf("PageUp/PageDown Change surface value\n");
+  printf("m output OBJ file\n");
 }
 
 
@@ -191,7 +200,7 @@ void vResize(GLsizei iWidth, GLsizei iHeight) {
 
 void vKeyboard(unsigned char cKey, int iX, int iY) {
   switch(cKey) {
-    case 'w' : {
+    case 'v' : {
       if(ePolygonMode == GL_LINE) {
         ePolygonMode = GL_FILL;
       }
@@ -211,7 +220,7 @@ void vKeyboard(unsigned char cKey, int iX, int iY) {
         fStepSize = 1.0/iDataSetSize;
       }
     } break;
-    case 's' : {
+    case 'b' : {
       if(fSample == fSample1) {
         fSample = fSample2;
       }
@@ -222,7 +231,34 @@ void vKeyboard(unsigned char cKey, int iX, int iY) {
         fSample = fSample1;
       }
     } break;
-    case 'l' : {
+      case '1' : {
+          fSample = fSample1;
+      } break;
+      case '2' : {
+          fSample = fSample2;
+      } break;
+      case '3' : {
+          fSample = fSample3;
+      } break;
+      case '4' : {
+          fSample = fSample4;
+      } break;
+      case '5' : {
+          fSample = fSample5;
+      } break;
+      case '6' : {
+          fSample = fSample6;
+      } break;
+      case '7' : {
+          fSample = fSample7;
+      } break;
+      case '8' : {
+          fSample = fSample8;
+      } break;
+      case '9' : {
+          fSample = fSample9;
+      } break;
+    case 'c' : {
       if(bLight) {
         glDisable(GL_LIGHTING);//use vertex colors
       }
@@ -232,7 +268,46 @@ void vKeyboard(unsigned char cKey, int iX, int iY) {
       
       bLight = !bLight;
     } break;
-    case 'u' : {
+      case 'a' : {
+          displacementX -= 0.1;
+      } break;
+      case 'd' : {
+          displacementX += 0.1;
+      } break;
+      case 'w' : {
+          displacementY += 0.1;
+      } break;
+      case 's' : {
+          displacementY -= 0.1;
+      } break;
+      case 'r' : {
+          scale -= 0.1;
+      } break;
+      case 'f' : {
+          scale += 0.1;
+      } break;
+      case 'h' : { // Y
+          panAngle += 1.0;
+      } break;
+      case 'k' : { // Y
+          panAngle -= 1.0;
+      } break;
+      case 'u' : { // X
+          tiltAngle += 1.0;
+      } break;
+      case 'j' : { // X
+          tiltAngle -= 1.0;
+      } break;
+      case 'o' : { // Z
+          rollAngle += 1.0;
+      } break;
+      case 'l' : { // Z
+          rollAngle -= 1.0;
+      } break;
+      case 27 : {
+          exit(0);
+      } break;
+    case 'm' : {
       outputOBJ();
     };
     case 'p' : {
@@ -263,6 +338,10 @@ void vIdle() {
 
 void vDrawScene() {
   static GLfloat fTime = 0.0;
+    
+    if(bMove) {
+        fTime += 0.025;
+    }
   
   if(!isInput) {
     sVertices.erase(sVertices.begin(),sVertices.end());
@@ -272,14 +351,18 @@ void vDrawScene() {
   }
   
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
   glLoadIdentity();
- 
+  
   glPushMatrix();
   // Animation
   vSetTime(fTime);
-  
-  glTranslatef(0.0, 0.0, -1.0);
-  glRotatef(30, 1.0, 1.0, 0.0);
+    
+  glScalef(scale, scale, 1.0);
+  glTranslatef(displacementX, displacementY, -1.0);
+  glRotatef(tiltAngle, 1.0, 0.0, 0.0);
+  glRotatef(panAngle, 0.0, 1.0, 0.0);
+  glRotatef(rollAngle, 0.0, 0.0, 1.0);
   
   // Draw outer box
   glPushAttrib(GL_LIGHTING_BIT);
@@ -375,7 +458,11 @@ GLfloat fSample1(GLfloat fX, GLfloat fY, GLfloat fZ) {
   fDy = fY - sSourcePoint[0].fY;
   fDz = fZ - sSourcePoint[0].fZ;
   fResult += 0.5/(fDx*fDx + fDy*fDy + fDz*fDz);
-  
+  //fResult += 5/(abs(fDx)+ abs(fDy) + abs(fDz));
+    //fResult += sqrt(fDx*fDx + fDy*fDy + fDz*fDz) - 0.9
+    //+ sin(12*atan2(fDx, fDz))
+    //*sin(8*atan2(fDy,sqrt(fDx*fDx+fDz*fDz)))*0.1;
+    
   fDx = fX - sSourcePoint[1].fX;
   fDy = fY - sSourcePoint[1].fY;
   fDz = fZ - sSourcePoint[1].fZ;
@@ -385,7 +472,12 @@ GLfloat fSample1(GLfloat fX, GLfloat fY, GLfloat fZ) {
   fDy = fY - sSourcePoint[2].fY;
   fDz = fZ - sSourcePoint[2].fZ;
   fResult += 1.5/(fDx*fDx + fDy*fDy + fDz*fDz);
-  
+    
+    // Other not so great results
+    //fResult += 1.0/(pow(abs(fDy)-fDx*fDx + fDz*fDz,2.0));
+    //fResult += 5.0/(fDx*fDx + fDy +fDz*fDz);
+    //fResult += 0.05/(pow( pow((sqrt(fDx*fDx+fDz*fDz)-0.5/10),2.0) + fDy*fDy - 0.5/10,2.0)); // not
+    //fResult += 15/(sinf(fDx*3 * fDy*3 + fDx*3 * fDz*3 + fDy*3 * fDz*3) + sinf(fDx*3 * fDy*3) + sinf(fDy*3 * fDz*3) + sinf(fDx*3 * fDz*3));
   return fResult;
 }
 
@@ -409,14 +501,94 @@ GLfloat fSample2(GLfloat fX, GLfloat fY, GLfloat fZ){
 }
 
 
-//fSample2 defines a height field by plugging the distance from the center into the sin and cos functions
 GLfloat fSample3(GLfloat fX, GLfloat fY, GLfloat fZ) {
-  GLfloat fHeight = 20.0*(fTime + sqrt((0.5-fX)*(0.5-fX) + (0.5-fY)*(0.5-fY)));
-  fHeight = 1.5 + 0.1*(sinf(fHeight) + cosf(fHeight));
-  GLdouble fResult = (fHeight - fZ)*50.0;
+    GLfloat fHeight = 20.0*(fTime + sqrt((0.5-fX)*(0.5-fX) + (0.5-fY)*(0.5-fY)));
+    fHeight = 1.5 + 0.1*(sinf(fHeight) + cosf(fHeight));
+    GLdouble fResult = (fHeight - fZ)*50.0;
+    
+    return fResult;
+}
+
+// Cone
+GLfloat fSample4(GLfloat fX, GLfloat fY, GLfloat fZ) {
+    GLdouble fResult = 0.0;
+    GLdouble fDx, fDy, fDz;
+    fDx = fX - sSourcePoint[0].fX;
+    fDy = fY - sSourcePoint[0].fY;
+    fDz = fZ - sSourcePoint[0].fZ;
+    
+    fResult += 0.1/(pow(sqrt(fDx*fDx + fDz*fDz) - abs(fDy),2.0)); // cone
   
   return fResult;
 }
+
+// Diamond
+GLfloat fSample5(GLfloat fX, GLfloat fY, GLfloat fZ) {
+    GLdouble fResult = 0.0;
+    GLdouble fDx, fDy, fDz;
+    fDx = fX - sSourcePoint[0].fX;
+    fDy = fY - sSourcePoint[0].fY;
+    fDz = fZ - sSourcePoint[0].fZ;
+    
+    fResult += 10/(abs(fDx)+ abs(fDy) + abs(fDz));
+    
+    return fResult;
+}
+
+// Ringed tube
+GLfloat fSample6(GLfloat fX, GLfloat fY, GLfloat fZ) {
+    GLdouble fResult = 0.0;
+    GLdouble fDx, fDy, fDz;
+    fDx = fX - sSourcePoint[0].fX;
+    fDy = fY - sSourcePoint[0].fY;
+    fDz = fZ - sSourcePoint[0].fZ;
+    
+    fResult += 0.1/(pow(sin(4*fDy*2*M_PI)/15 + sqrt(fDx*fDx*2 + fDz*fDz*2) - 0.5,2.0)); // ringed tube
+    
+    return fResult;
+}
+
+// Ringed sphere
+GLfloat fSample7(GLfloat fX, GLfloat fY, GLfloat fZ) {
+    GLdouble fResult = 0.0;
+    GLdouble fDx, fDy, fDz;
+    fDx = fX - sSourcePoint[0].fX;
+    fDy = fY - sSourcePoint[0].fY;
+    fDz = fZ - sSourcePoint[0].fZ;
+    
+    fResult += 10.0/(pow(sqrt(fDx*fDx + fDy*fDy + fDz*fDz) - 0.9 + sin(18*atan2(fDy,sqrt(fDx*fDx+fDz*fDz)))*0.05,2.0)); // ringed sphere
+    
+    return fResult;
+}
+
+// Rock
+GLfloat fSample8(GLfloat fX, GLfloat fY, GLfloat fZ) {
+    GLdouble fResult = 0.0;
+    GLdouble fDx, fDy, fDz;
+    fDx = fX - sSourcePoint[0].fX;
+    fDy = fY - sSourcePoint[0].fY;
+    fDz = fZ - sSourcePoint[0].fZ;
+    
+    fResult += 15/(pow(sqrt(fDx*fDx + fDy*fDy + fDz*fDz) - 0.9
+                       + sin(12*atan2(fDx, fDz))
+                       *sin(8*atan2(fDy,sqrt(fDx*fDx+fDz*fDz)))*0.1,2.0)); // rock
+    
+    return fResult;
+}
+
+// Something
+GLfloat fSample9(GLfloat fX, GLfloat fY, GLfloat fZ) {
+    GLdouble fResult = 0.0;
+    GLdouble fDx, fDy, fDz;
+    fDx = fX - sSourcePoint[0].fX;
+    fDy = fY - sSourcePoint[0].fY;
+    fDz = fZ - sSourcePoint[0].fZ;
+    
+    fResult += 5.0/(pow( (sqrt(fDx*fDx+fDz*fDz)-0.05)*(sqrt(fDx*fDx+fDz*fDz)-0.05) + fDy*fDy - 0.02,2.0));
+    
+    return fResult;
+}
+
 
 
 //vGetNormal() finds the gradient of the scalar field at a point
