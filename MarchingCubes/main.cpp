@@ -78,13 +78,13 @@ static const GLfloat afDiffuseDarkRed  [] = {0.50, 0.00, 0.00, 1.00};
 
 GLenum    ePolygonMode = GL_FILL;
 GLint     iDataSetSize = 32;
-GLfloat   fStepSize = 1.0/iDataSetSize;
+double   fStepSize = 1.0/iDataSetSize;
 GLfloat   fTargetValue = 48.0;
 GLfloat   fTime = 0.0;
 GLvector  sSourcePoint[3];
 GLboolean bSpin = true;
-GLboolean bMove = true;
-GLboolean bLight = true;
+bool bMove = false;
+bool bLight = true;
 
 void vIdle();
 void vDrawScene();
@@ -94,6 +94,8 @@ void vSpecial(int iKey, int iX, int iY);
 void outputOBJ();
 void drawInput();
 void inputOBJ();
+void outputSession();
+void inputSession();
 
 GLvoid vPrintHelp();
 GLvoid vSetTime(GLfloat fTime);
@@ -110,13 +112,17 @@ GLfloat (*fSample)(GLfloat fX, GLfloat fY, GLfloat fZ) = fSample1;
 GLvoid vMarchingCubes();
 
 ofstream oFile;
+ofstream oSession;
 vector<string> sVertices;
 vector<string> sNormalVertices;
 vector<string> sFaces;
 int vertexCounter = 1;
 bool isInput = false;
+int currentIsosurface = 1;
+bool once = false;
 
 int main(int argc, char **argv) {
+
   GLfloat afPropertiesAmbient [] = {0.50, 0.50, 0.50, 1.00};
   GLfloat afPropertiesDiffuse [] = {0.75, 0.75, 0.75, 1.00};
   GLfloat afPropertiesSpecular[] = {1.00, 1.00, 1.00, 1.00};
@@ -158,6 +164,8 @@ int main(int argc, char **argv) {
   glMaterialf( GL_FRONT, GL_SHININESS, 25.0);
   
   vResize(iWidth, iHeight);
+
+  if(!once) inputSession(); 
   
   vPrintHelp();
   glutMainLoop();
@@ -166,14 +174,32 @@ int main(int argc, char **argv) {
 }
 
 GLvoid vPrintHelp() {
-  printf("Use numbers to change figures (functions) \n");
-  printf("c  Change color \n");
-  printf("v  Change view type (fill/wireframe)\n");
-  printf("+/-  Change number of cubes \n");
-  printf("WASD, R and F to translate\n");
-  printf("UHJK, O and L to rotate\n");
-  printf("PageUp/PageDown Change surface value\n");
-  printf("m output OBJ file\n");
+  printf("Key values: \n\n");
+  printf("Camera movement:  \n");
+  printf("Boom: \n");
+  printf("W/S - Up/Down  \n");
+  printf("Dolly:  \n");
+  printf("A/D - Left/Right \n");
+  printf("Truck:  \n");
+  printf("R/F - Front/Back  \n");
+  printf("Rotate view:  \n");
+  printf("H/K/U/J/O/L  \n\n");
+  printf("Change view type: \n");
+  printf("V - Fill/Wireframe  \n\n");
+  printf("Change number of cubes: \n");
+  printf("+/- - More/Less  \n\n");
+  printf("Movement:  \n");
+  printf("B - On/Off  \n\n");
+  printf("Change color scheme:  \n");
+  printf("C - Red/Multi \n\n");
+  printf("Save current object:  \n");
+  printf("M - Save \n\n");
+  printf("Open saved file:  \n");
+  printf("P - Open file  \n\n");
+  printf("Change isosurface:  \n");
+  printf("1/2/3/4/5/6/7/8/9 - Change isosurface  \n\n");
+  printf("Close window:\n");
+  printf("ESC - Close\n\n\n");
 }
 
 
@@ -221,43 +247,44 @@ void vKeyboard(unsigned char cKey, int iX, int iY) {
       }
     } break;
     case 'b' : {
-      if(fSample == fSample1) {
-        fSample = fSample2;
-      }
-      else if(fSample == fSample2) {
-        fSample = fSample3;
-      }
-      else {
-        fSample = fSample1;
-      }
+      bMove = !bMove;
     } break;
-      case '1' : {
-          fSample = fSample1;
-      } break;
-      case '2' : {
-          fSample = fSample2;
-      } break;
-      case '3' : {
-          fSample = fSample3;
-      } break;
-      case '4' : {
-          fSample = fSample4;
-      } break;
-      case '5' : {
-          fSample = fSample5;
-      } break;
-      case '6' : {
-          fSample = fSample6;
-      } break;
-      case '7' : {
-          fSample = fSample7;
-      } break;
-      case '8' : {
-          fSample = fSample8;
-      } break;
-      case '9' : {
-          fSample = fSample9;
-      } break;
+    case '1' : {
+        fSample = fSample1;
+        currentIsosurface = 1;
+    } break;
+    case '2' : {
+        fSample = fSample2;
+        currentIsosurface = 2;
+    } break;
+    case '3' : {
+        fSample = fSample3;
+        currentIsosurface = 3;
+    } break;
+    case '4' : {
+        fSample = fSample4;
+        currentIsosurface = 4;
+    } break;
+    case '5' : {
+        fSample = fSample5;
+        currentIsosurface = 5;
+    } break;
+    case '6' : {
+        fSample = fSample6;
+        currentIsosurface = 6;
+    } break;
+    case '7' : {
+        fSample = fSample7;
+        currentIsosurface = 7;
+    } break;
+    case '8' : {
+        fSample = fSample8;
+        currentIsosurface = 8;
+    } break;
+    case '9' : {
+        fSample = fSample9;
+        currentIsosurface = 9;
+    } break;
     case 'c' : {
       if(bLight) {
         glDisable(GL_LIGHTING);//use vertex colors
@@ -268,47 +295,49 @@ void vKeyboard(unsigned char cKey, int iX, int iY) {
       
       bLight = !bLight;
     } break;
-      case 'a' : {
-          displacementX -= 0.1;
-      } break;
-      case 'd' : {
-          displacementX += 0.1;
-      } break;
-      case 'w' : {
-          displacementY += 0.1;
-      } break;
-      case 's' : {
-          displacementY -= 0.1;
-      } break;
-      case 'r' : {
-          scale -= 0.1;
-      } break;
-      case 'f' : {
-          scale += 0.1;
-      } break;
-      case 'h' : { // Y
-          panAngle += 1.0;
-      } break;
-      case 'k' : { // Y
-          panAngle -= 1.0;
-      } break;
-      case 'u' : { // X
-          tiltAngle += 1.0;
-      } break;
-      case 'j' : { // X
-          tiltAngle -= 1.0;
-      } break;
-      case 'o' : { // Z
-          rollAngle += 1.0;
-      } break;
-      case 'l' : { // Z
-          rollAngle -= 1.0;
-      } break;
-      case 27 : {
-          exit(0);
-      } break;
+    case 'a' : {
+        displacementX -= 0.1;
+    } break;
+    case 'd' : {
+        displacementX += 0.1;
+    } break;
+    case 'w' : {
+        displacementY += 0.1;
+    } break;
+    case 's' : {
+        displacementY -= 0.1;
+    } break;
+    case 'r' : {
+        scale -= 0.1;
+    } break;
+    case 'f' : {
+        scale += 0.1;
+    } break;
+    case 'h' : { // Y
+        panAngle += 1.0;
+    } break;
+    case 'k' : { // Y
+        panAngle -= 1.0;
+    } break;
+    case 'u' : { // X
+        tiltAngle += 1.0;
+    } break;
+    case 'j' : { // X
+        tiltAngle -= 1.0;
+    } break;
+    case 'o' : { // Z
+        rollAngle += 1.0;
+    } break;
+    case 'l' : { // Z
+        rollAngle -= 1.0;
+    } break;
+    case 27 : {
+      outputSession();
+      exit(0);
+    } break;
     case 'm' : {
       outputOBJ();
+      break;
     };
     case 'p' : {
       isInput = !isInput;
@@ -353,7 +382,7 @@ void vDrawScene() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glLoadIdentity();
-  
+
   glPushMatrix();
   // Animation
   vSetTime(fTime);
@@ -1055,5 +1084,113 @@ void drawInput() {
     if(code == "vn") {
       glNormal3f(dX,dY,dZ);
     }
+  }
+}
+
+void outputSession() {
+  oSession.open("session.txt");
+  if (oSession.is_open()) {
+    oSession << currentIsosurface << " "; //current isosurface
+    oSession << displacementY << " ";
+    oSession << displacementX << " ";
+    oSession << scale << " ";
+    oSession << panAngle << " ";
+    oSession << tiltAngle << " ";
+    oSession << rollAngle << " ";
+    oSession << fStepSize << " ";
+    oSession << bMove << " ";
+    oSession << bLight << " ";
+    oSession << isInput;
+    oSession.flush();
+    oSession.close();
+  }
+  else{
+    cout << "ERROR - Error en la sesión";
+    exit (EXIT_FAILURE);
+  }
+}
+
+void inputSession() {
+  ifstream iSession ("session.txt");
+  string line = "";
+
+  if (iSession.is_open()) {
+    getline (iSession,line);
+    
+    // get words into vector
+    istringstream buf(line);
+    istream_iterator<string> beg(buf), end;
+    vector<string> tokens(beg, end); 
+
+    currentIsosurface = atoi(tokens[0].c_str());
+    displacementY = atof(tokens[1].c_str());
+    displacementX = atof(tokens[2].c_str());
+    scale = atof(tokens[3].c_str());
+    panAngle = atof(tokens[4].c_str());
+    tiltAngle = atof(tokens[5].c_str());
+    rollAngle = atof(tokens[6].c_str());
+    fStepSize = atof(tokens[7].c_str());
+    if(tokens[8] == "0") bMove = false;
+    else bMove = true;
+    if(tokens[9] == "0") bLight = true;
+    else bLight = false;
+    if(tokens[10] == "0") isInput = false;
+    else {
+    isInput = true;
+    inputOBJ();
+    }
+
+    switch(currentIsosurface){
+      case 1 : {
+        fSample = fSample1;
+        currentIsosurface = 1;
+      } break;
+      case 2 : {
+          fSample = fSample2;
+          currentIsosurface = 2;
+      } break;
+      case 3 : {
+          fSample = fSample3;
+          currentIsosurface = 3;
+      } break;
+      case 4 : {
+          fSample = fSample4;
+          currentIsosurface = 4;
+      } break;
+      case 5 : {
+          fSample = fSample5;
+          currentIsosurface = 5;
+      } break;
+      case 6 : {
+          fSample = fSample6;
+          currentIsosurface = 6;
+      } break;
+      case 7 : {
+          fSample = fSample7;
+          currentIsosurface = 7;
+      } break;
+      case 8 : {
+          fSample = fSample8;
+          currentIsosurface = 8;
+      } break;
+      case 9 : {
+          fSample = fSample9;
+          currentIsosurface = 9;
+      } break;
+    }
+
+    if(bLight) {
+      glDisable(GL_LIGHTING);//use vertex colors
+    }
+    else {
+      glEnable(GL_LIGHTING);//use lit material color
+    }
+
+    iSession.close();
+  }
+
+  else {
+    cout << "ERROR - No se pudo crear el archivo";
+    exit (EXIT_FAILURE);
   }
 }
